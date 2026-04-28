@@ -24,8 +24,8 @@ interface Props {
 }
 
 const SAMPLE_RATE_MS = 50
-const MAX_DURATION_MS = 3000  // 3 segundos exactos
-const MIN_DURATION_MS = 2000  // 2 segundos mínimo para considerar éxito
+const MAX_DURATION_MS = 2000  // barra se llena en 2 segundos
+const MIN_DURATION_MS = 1000  // 1 segundo mínimo de voz
 
 export default function VocalChallengeCard({
   onComplete, visible

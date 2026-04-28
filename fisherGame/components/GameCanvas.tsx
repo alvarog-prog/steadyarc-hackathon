@@ -15,7 +15,7 @@ const DER_WH = 642 / 1696;
 
 const getDescription = (type: string): string => {
   switch(type) {
-    case 'REPEATED_PINCH': return 'Junta el pulgar y el índice 4 veces, marinero.';
+    case 'REPEATED_PINCH': return 'Junta el pulgar y el índice 3 veces, marinero.';
     case 'HOLD_HAND_OPEN': return 'Abre bien la mano y mantén 2 segundos.';
     case 'SMILE_CHALLENGE': return '¡Sonríe al mar! El pez responde a la alegría.';
     case 'PINCH_TARGET': return 'Haz la pinza con pulgar e índice.';
@@ -118,6 +118,7 @@ export default function GameCanvas({ onOpenClinical }: GameCanvasProps) {
   });
   const scoreRef         = useRef<number>(0);
   const floatingTextsRef = useRef<FloatingText[]>([]);
+  const usedChallengesRef = useRef<string[]>([]);
 
   // State for Challenge UI (to trigger re-renders of ChallengeCard)
   const [challengeUI, setChallengeUI] = useState({
@@ -509,7 +510,15 @@ export default function GameCanvas({ onOpenClinical }: GameCanvasProps) {
 
     // ── Reeling ───────────────────────────────────────────────────────────
     function pickChallenge(): ChallengeType {
-      return CHALLENGE_TYPES[Math.floor(Math.random() * CHALLENGE_TYPES.length)];
+      // Filtrar retos ya usados en este pez
+      const available = CHALLENGE_TYPES.filter(
+        c => !usedChallengesRef.current.includes(c)
+      );
+      // Si todos fueron usados, resetear la lista
+      const pool = available.length > 0 ? available : CHALLENGE_TYPES;
+      const selected = pool[Math.floor(Math.random() * pool.length)];
+      usedChallengesRef.current.push(selected);
+      return selected;
     }
 
     function startChallenge(r: ReelingState, now: number): void {
@@ -535,11 +544,13 @@ export default function GameCanvas({ onOpenClinical }: GameCanvasProps) {
       r.fishStartX   = fish.x;
       r.fishStartY   = fish.y;
       r.challengeDone = 0;
+      r.mashCount    = 0;  // Resetear contador de pinches explícitamente
       r.lerpFromX    = fish.x;
       r.lerpFromY    = fish.y;
       r.lerpTargetX  = fish.x;
       r.lerpTargetY  = fish.y;
       r.lerpStartTime = 0; // sentinel → lerpT = 1 immediately (no initial lerp)
+      usedChallengesRef.current = [];  // Nuevo pez, lista limpia de retos usados
       startChallenge(r, now);
     }
 
@@ -660,7 +671,7 @@ export default function GameCanvas({ onOpenClinical }: GameCanvasProps) {
         }
       } else {
         r.mashCount += consumePinchCount();
-        if (r.mashCount >= 4) done = true;
+        if (r.mashCount >= 3) done = true;
       }
 
       if (!done) return;
@@ -889,7 +900,7 @@ export default function GameCanvas({ onOpenClinical }: GameCanvasProps) {
             progress={challengeUI.progress / 100}
             progressLabel={
               challengeUI.type === 'REPEATED_PINCH'
-                ? `${challengeUI.count} / 4`
+                ? `${challengeUI.count} / 3`
                 : undefined
             }
             description={getDescription(challengeUI.type)}
