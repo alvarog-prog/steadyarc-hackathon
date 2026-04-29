@@ -6,6 +6,7 @@ import { FishManager, type Fish } from "@/lib/game/FishManager";
 import { useHandTracking } from "@/lib/input/useHandTracking";
 import WoodenSign, { GestureIcon } from "./WoodenSign";
 import VocalChallengeCard from "./VocalChallengeCard";
+import ClinicalMiniPreview from "./ClinicalMiniPreview";
 import { VocalMetrics } from "@/lib/vocalAnalysis";
 import { computeSessionMetrics, type ChallengeRecord, type SessionMetrics } from "@/lib/sessionMetrics";
 
@@ -97,7 +98,7 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
   const lastVocalMetricsRef = useRef<VocalMetrics | null>(null);
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const videoRef     = useRef<HTMLVideoElement>(null);
-  const { handOpennessRef, consumePinchCount, isSmilingRef, handPosRef, isFistRef } = useHandTracking(videoRef);
+  const { handOpennessRef, consumePinchCount, isSmilingRef, handPosRef, isFistRef, handLandmarksRef, faceLandmarksRef } = useHandTracking(videoRef);
   const inputRef     = useRef<MediaPipeHandInput | null>(null);
   const rafRef       = useRef<number>(0);
   const mucRef       = useRef<HTMLImageElement | null>(null);
@@ -904,7 +905,15 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
     <>
       <video
         ref={videoRef}
-        style={{ display: "none" }}
+        style={{
+          position: "fixed",
+          top: "-9999px",
+          left: "-9999px",
+          width: "1px",
+          height: "1px",
+          opacity: 0.01,
+          pointerEvents: "none",
+        }}
         playsInline
         muted
       />
@@ -951,6 +960,13 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
           visible={showVocalChallenge}
         />
       )}
+
+      {/* Mini clinical camera preview — bottom left */}
+      <ClinicalMiniPreview
+        videoRef={videoRef}
+        handLandmarksRef={handLandmarksRef}
+        faceLandmarksRef={faceLandmarksRef}
+      />
 
       <button
         onClick={onOpenClinical}

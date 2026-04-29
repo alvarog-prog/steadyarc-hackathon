@@ -44,6 +44,8 @@ function detectSmile(flm: { x: number; y: number }[]): boolean {
   return dFace > 0 && (dSmile / dFace) > 0.42;
 }
 
+export type LandmarkPoint = { x: number; y: number };
+
 export function useHandTracking(
   videoRef: React.RefObject<HTMLVideoElement | null>
 ): {
@@ -52,6 +54,8 @@ export function useHandTracking(
   isSmilingRef:      React.MutableRefObject<boolean>;
   handPosRef:        React.MutableRefObject<{ x: number; y: number }>;
   isFistRef:         React.MutableRefObject<boolean>;
+  handLandmarksRef:  React.MutableRefObject<LandmarkPoint[] | null>;
+  faceLandmarksRef:  React.MutableRefObject<LandmarkPoint[] | null>;
 } {
   const handOpennessRef  = useRef<number>(0);
   const pinchCountRef    = useRef<number>(0);
@@ -59,6 +63,8 @@ export function useHandTracking(
   const isSmilingRef     = useRef<boolean>(false);
   const handPosRef       = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
   const isFistRef        = useRef<boolean>(false);
+  const handLandmarksRef = useRef<LandmarkPoint[] | null>(null);
+  const faceLandmarksRef = useRef<LandmarkPoint[] | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -85,6 +91,9 @@ export function useHandTracking(
           const lm = results.multiHandLandmarks?.[0];
           handOpennessRef.current = lm ? calcHandOpenness(lm) : 0;
 
+          // Store raw landmarks for mini preview
+          handLandmarksRef.current = lm || null;
+
           // Actualizar posición de la mano usando el centro de la palma (lm[9]) - invertir X para efecto espejo
           if (lm && lm[9]) {
             handPosRef.current = {
@@ -108,7 +117,7 @@ export function useHandTracking(
         });
         faceMeshInstance.setOptions({
           maxNumFaces: 1,
-          refineLandmarks: false,
+          refineLandmarks: true,
           minDetectionConfidence: 0.5,
           minTrackingConfidence: 0.5,
         });
@@ -116,6 +125,8 @@ export function useHandTracking(
           if (!isMounted) return;
           const flm = results.multiFaceLandmarks?.[0];
           isSmilingRef.current = flm ? detectSmile(flm) : false;
+          // Store raw face landmarks for mini preview
+          faceLandmarksRef.current = flm || null;
         });
 
         if (!videoRef.current) return;
@@ -150,5 +161,5 @@ export function useHandTracking(
     return n;
   };
 
-  return { handOpennessRef, consumePinchCount, isSmilingRef, handPosRef, isFistRef };
+  return { handOpennessRef, consumePinchCount, isSmilingRef, handPosRef, isFistRef, handLandmarksRef, faceLandmarksRef };
 }

@@ -65,12 +65,15 @@ export default function Home() {
     <GameEngineProvider gazeSamples={gazeSamplesRef}>
       <main className="relative w-screen h-screen bg-black overflow-hidden">
 
-      {/* Juego — se monta solo al terminar la calibración */}
-      {phase === "playing" && (
-        <GameCanvas
-          onOpenClinical={() => setPhase("clinical")}
-          onGameOver={handleGameOver}
-        />
+      {/* Juego — se mantiene montado durante "playing" y "clinical" para no perder estado.
+          Se oculta visualmente cuando estamos en clinical view. */}
+      {(phase === "playing" || phase === "clinical") && (
+        <div style={{ display: phase === "playing" ? "block" : "none" }}>
+          <GameCanvas
+            onOpenClinical={() => setPhase("clinical")}
+            onGameOver={handleGameOver}
+          />
+        </div>
       )}
 
       {/* Mensaje de carga mientras se inicializa el eye tracker */}
@@ -104,9 +107,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* CalibrationScreen: solo durante calibración y juego.
-          Se detiene en modo clinical para no competir con la cámara de MediaPipe. */}
-      {(phase === "calibrating" || phase === "playing") && (
+      {/* CalibrationScreen: se mantiene durante calibración, juego y clinical.
+          Así el eye tracker no se reinicia al volver del clinical view. */}
+      {(phase === "calibrating" || phase === "playing" || phase === "clinical") && (
         <CalibrationScreen onGaze={handleGaze} onCalibrated={handleCalibrated} />
       )}
 
