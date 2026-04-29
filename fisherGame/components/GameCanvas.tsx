@@ -149,6 +149,7 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
   const [vocalChallengeKey, setVocalChallengeKey] = useState(0);
   const vocalMetricsRef = useRef<VocalMetrics | null>(null);
   const showVocalChallengeRef = useRef(false);
+  const challengeActiveRef = useRef(false);
 
   const handleVocalComplete = (metrics: VocalMetrics) => {
     setShowVocalChallenge(false);
@@ -168,6 +169,7 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
       // Reto fallado — el pez se escapa
       fishMgrRef.current.catchFish(r.fishId);
       r.active = false;
+      challengeActiveRef.current = false;
       castRef.current.phase = "in";
       castRef.current.phaseStart = performance.now();
     }
@@ -545,6 +547,7 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
       r.holdAccum           = 0;
       r.mashCount           = 0;
       setMashCount(0);  // Reset del estado React espejo
+      challengeActiveRef.current = true;
 
       // Si es VOCAL, activar el componente VocalChallengeCard y desactivar retos clínicos
       if (r.currentChallenge === "VOCAL") {
@@ -634,7 +637,7 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
       if (!inp) return;
 
       const fish = fishMgrRef.current.getFish();
-      if (!fish || fish.id !== r.fishId) { r.active = false; return; }
+      if (!fish || fish.id !== r.fishId) { r.active = false; challengeActiveRef.current = false; return; }
 
       // Lerp fish toward current target position
       const lerpT = r.lerpStartTime === 0
@@ -652,15 +655,17 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
 
       // Timeout → fish escapes
       if ((now - r.challengeStart) / 1000 >= 6) {
-        // NUNCA liberar el pez si hay un reto vocal activo
-        if (showVocalChallengeRef.current) {
+        // Si hay cualquier reto clínico activo, resetear el timer
+        const anyReto = showVocalChallengeRef.current || challengeActiveRef.current;
+        if (anyReto) {
           // Resetear el timer para que no vuelva a dispararse en el siguiente tick
           r.challengeStart = now;
           return;
         }
-        // Solo liberar si no hay reto vocal activo
+        // Solo liberar si no hay ningún reto activo
         fishMgrRef.current.catchFish(fish.id);
         r.active = false;
+        challengeActiveRef.current = false;
         castRef.current.phase      = "in";
         castRef.current.phaseStart = now;
         return;
@@ -727,6 +732,7 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
         });
         fishMgrRef.current.catchFish(fish.id);
         r.active = false;
+        challengeActiveRef.current = false;
         castRef.current.phase      = "in";
         castRef.current.phaseStart = now;
         if (scoreRef.current >= 100) {
