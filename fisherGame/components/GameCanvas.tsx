@@ -148,11 +148,29 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
   const [showVocalChallenge, setShowVocalChallenge] = useState(false);
   const [vocalChallengeKey, setVocalChallengeKey] = useState(0);
   const vocalMetricsRef = useRef<VocalMetrics | null>(null);
+  const showVocalChallengeRef = useRef(false);
 
   const handleVocalComplete = (metrics: VocalMetrics) => {
     setShowVocalChallenge(false);
-    vocalMetricsRef.current = metrics;
+    showVocalChallengeRef.current = false;
     lastVocalMetricsRef.current = metrics;
+
+    // Verificar que el pez sigue enganchado
+    const r = reelingRef.current;
+    if (!r.active) return; // el pez ya no está, no hacer nada
+
+    // El reto vocal se considera exitoso si vocal_duration_ms > 500ms
+    const success = metrics.vocal_duration_ms > 500;
+
+    if (success) {
+      vocalMetricsRef.current = metrics; // señal para tickReeling
+    } else {
+      // Reto fallado — el pez se escapa
+      fishMgrRef.current.catchFish(r.fishId);
+      r.active = false;
+      castRef.current.phase = "in";
+      castRef.current.phaseStart = performance.now();
+    }
   };
 
   useEffect(() => {
@@ -532,9 +550,11 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
       if (r.currentChallenge === "VOCAL") {
         setVocalChallengeKey(prev => prev + 1); // Incrementar key para forzar remount
         setShowVocalChallenge(true);
+        showVocalChallengeRef.current = true;
       } else {
         // Para retos no vocales, asegurarse de que vocal está oculto
         setShowVocalChallenge(false);
+        showVocalChallengeRef.current = false;
       }
     }
 
@@ -632,11 +652,13 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
 
       // Timeout → fish escapes
       if ((now - r.challengeStart) / 1000 >= 6) {
-        // Si hay reto vocal activo, extender el timeout en vez de liberar el pez
-        if (showVocalChallenge) {
-          r.challengeStart = now;  // resetear el timer mientras el reto vocal está activo
+        // NUNCA liberar el pez si hay un reto vocal activo
+        if (showVocalChallengeRef.current) {
+          // Resetear el timer para que no vuelva a dispararse en el siguiente tick
+          r.challengeStart = now;
           return;
         }
+        // Solo liberar si no hay reto vocal activo
         fishMgrRef.current.catchFish(fish.id);
         r.active = false;
         castRef.current.phase      = "in";
