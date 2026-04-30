@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import GameCanvas          from "@/components/GameCanvas";
 import CalibrationScreen   from "@/components/CalibrationScreen";
 import ClinicalView        from "@/components/ClinicalView";
-import GameOverDashboard   from "@/components/GameOverDashboard";
+import SessionResultsDashboard from "@/components/SessionResultsDashboard";
 import { GameEngineProvider } from "@/context/GameEngineProvider";
 import type { GazeSample } from "@/lib/gazeMetrics";
 import type { SessionMetrics } from "@/lib/sessionMetrics";
@@ -57,7 +57,7 @@ export default function Home() {
   const handleReplay = useCallback(() => {
     setFinalScore(0);
     setSessionMetrics(null);
-    setPhase("intro");
+    setPhase("playing");
   }, []);
 
   // ─────────────────────────────────────────────────────────────────
@@ -115,7 +115,13 @@ export default function Home() {
 
       {/* Dashboard final — se muestra al terminar la partida */}
       {phase === "dashboard" && sessionMetrics && (
-        <GameOverDashboard score={finalScore} metrics={sessionMetrics} onReplay={handleReplay} />
+        <SessionResultsDashboard
+          score={finalScore}
+          metrics={sessionMetrics}
+          onReplay={handleReplay}
+          patientId="P-0001"
+          sessionId={`S-${new Date().toISOString().slice(0, 10)}-001`}
+        />
       )}
 
       {/* ── Pantalla de intro ─────────────────────────────────────── */}

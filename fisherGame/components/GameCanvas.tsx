@@ -124,6 +124,7 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
   });
   const scoreRef         = useRef<number>(0);
   const floatingTextsRef = useRef<FloatingText[]>([]);
+  const usedChallengesRef = useRef<ChallengeType[]>([]);
 
   // State for Challenge UI (to trigger re-renders of ChallengeCard)
   const [challengeUI, setChallengeUI] = useState({
@@ -158,13 +159,53 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
 
     // Verificar que el pez sigue enganchado
     const r = reelingRef.current;
-    if (!r.active) return; // el pez ya no está, no hacer nada
+    if (!r.active) return;
 
     // El reto vocal se considera exitoso si vocal_duration_ms > 500ms
     const success = metrics.vocal_duration_ms > 500;
 
     if (success) {
-      vocalMetricsRef.current = metrics; // señal para tickReeling
+      // Registrar reto completado
+      challengeRecordsRef.current.push({
+        type: "VOCAL",
+        completionMs: performance.now() - r.challengeActualStart,
+        succeeded: true,
+      });
+
+      r.challengeDone++;
+
+      if (r.challengeDone >= 3) {
+        // Captura del pez — misma lógica exacta que tickReeling
+        const fish = fishMgrRef.current.getFish();
+        const now = performance.now();
+        scoreRef.current += 100;
+        if (fish) {
+          floatingTextsRef.current.push({
+            text: "+100", x: pezCX(fish), y: fish.y - 20, startTime: now,
+          });
+        }
+        fishMgrRef.current.catchFish(r.fishId);
+        r.active = false;
+        challengeActiveRef.current = false;
+        castRef.current.phase = "in";
+        castRef.current.phaseStart = now;
+        if (scoreRef.current >= 100) {
+          cancelAnimationFrame(rafRef.current);
+          const vm = lastVocalMetricsRef.current;
+          const sessionMetrics = computeSessionMetrics(
+            challengeRecordsRef.current,
+            vm?.amplitude_stability ?? 0,
+            vm?.vocal_duration_ms ?? 0,
+            vm?.pause_count ?? 0,
+            vm?.mean_amplitude ?? 0,
+          );
+          onGameOver(scoreRef.current, sessionMetrics);
+        }
+      } else {
+        // Pez se acerca, siguiente reto
+        r.challengeStart = performance.now();
+        vocalMetricsRef.current = metrics; // señal para tickReeling para avanzar lerp
+      }
     } else {
       // Reto fallado — el pez se escapa
       fishMgrRef.current.catchFish(r.fishId);
@@ -537,7 +578,13 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
 
     // ── Reeling ───────────────────────────────────────────────────────────
     function pickChallenge(): ChallengeType {
-      return CHALLENGE_TYPES[Math.floor(Math.random() * CHALLENGE_TYPES.length)];
+      const available = CHALLENGE_TYPES.filter(
+        c => !usedChallengesRef.current.includes(c)
+      );
+      const pool = available.length > 0 ? available : CHALLENGE_TYPES;
+      const selected = pool[Math.floor(Math.random() * pool.length)];
+      usedChallengesRef.current.push(selected);
+      return selected;
     }
 
     function startChallenge(r: ReelingState, now: number): void {
@@ -572,7 +619,8 @@ export default function GameCanvas({ onOpenClinical, onGameOver }: GameCanvasPro
       r.lerpFromY    = fish.y;
       r.lerpTargetX  = fish.x;
       r.lerpTargetY  = fish.y;
-      r.lerpStartTime = 0; // sentinel → lerpT = 1 immediately (no initial lerp)
+      r.lerpStartTime = 0;
+      usedChallengesRef.current = [];
       startChallenge(r, now);
     }
 
